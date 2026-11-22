@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0c071d">
+<title>REVORA · Survey Results</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--bg0:#0c071d;--bg1:#150c30;--violet:#8b5cf6;--violet2:#7c3aed;--lilac:#a78bfa;--lavender:#c4b5fd;--cyan:#22d3ee;--rose:#fb7185;--green:#34d399;
+  --text:#f5f2ff;--dim:rgba(233,228,255,.7);--faint:rgba(233,228,255,.45);--line:rgba(255,255,255,.09);
+  --display:'Plus Jakarta Sans',Inter,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100dvh;background:radial-gradient(1000px 700px at 10% -10%,#2a1660,transparent 60%),linear-gradient(180deg,var(--bg0),var(--bg1));background-attachment:fixed;
+  color:var(--text);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:20px 16px 40px}
+button,input{font:inherit;color:inherit}
+.wrap{max-width:1100px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+header h1{font-family:var(--display);font-size:22px;font-weight:800;letter-spacing:.02em}
+header small{display:block;color:var(--faint);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+.sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:13px;font-weight:650;font-size:14.5px;border:0;cursor:pointer;color:#fff;
+  background:linear-gradient(135deg,var(--violet2),var(--violet));box-shadow:0 10px 26px -10px rgba(124,58,237,.8),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn.ghost{background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px var(--line)}
+.btn[disabled]{opacity:.5;pointer-events:none}
+.card{border-radius:20px;padding:18px;background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.11)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px}
+.kpi span{font-size:11.5px;color:var(--faint);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.kpi b{display:block;font-family:var(--display);font-size:34px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:14px}
+.q h3{font-size:14px;font-weight:650;margin-bottom:12px;line-height:1.35}
+.bar{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:4px 10px;align-items:center;font-size:13px;margin-bottom:9px}
+.bar .lbl{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .n{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}
+.bar .track{grid-column:1/-1;height:8px;border-radius:9px;background:rgba(255,255,255,.06);overflow:hidden}
+.bar .track i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--violet),var(--cyan));transition:width .8s cubic-bezier(.22,1,.36,1)}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:1500px}
+th,td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--faint);font-weight:700;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;position:sticky;top:0}
+td{color:var(--dim)}
+td.nm{color:var(--text);font-weight:600}
+.gate{max-width:420px;margin:12vh auto 0;text-align:center}
+.gate input{width:100%;padding:14px;border-radius:13px;border:1px solid rgba(255,255,255,.14);background:rgba(8,4,24,.5);margin:16px 0 12px;font-size:15px;outline:none}
+.err{color:#fda4af;font-size:13px;min-height:1em;margin-top:8px}
+.muted{color:var(--faint);font-size:12.5px}
+.empty{color:var(--faint);text-align:center;padding:30px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+const SUPABASE_URL = "https://ihrvhkxcccorysfmyrvo.supabase.co";
+const SUPABASE_KEY = "sb_publishable_sjmyoi73ASiV_dd-nQB5ig_uB-NYa4B";
+const TKEY = "revora_admin_token";
+const app = document.getElementById("app");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const COLS = [
+  ["created_at","Submitted"],["name","Name"],["role","Role"],["role_other","Role (other)"],
+  ["uses_agents","Q3 · Uses AI agents that take actions?"],["could_happen","Q4 · Could a 1→128 cancellation happen?"],
+  ["time_to_detect","Q5 · Time to know what the agent changed"],["concerns","Q6 · Biggest concerns"],
+  ["value_rating","Q7 · How valuable is REVORA?"],["top_feature","Q8 · Most important capability"],
+  ["market_timing","Q9 · Do companies need it?"],["feedback","Q10 · What would make it a must-have"],
+  ["wants_followup","Wants early access"],["email","Email"]
+];
+const CHARTS = [
+  ["role","Role"],["uses_agents","Uses AI agents that take actions?"],["could_happen","Could a 1→128 cancellation happen in a business they know?"],
+  ["time_to_detect","How long to know exactly what the agent changed?"],["concerns","Biggest concerns (multi-select)"],
+  ["value_rating","How valuable would REVORA be?"],["top_feature","Most important capability"],["market_timing","Do companies need something like REVORA?"]
+];
+let token = "", rows = [], timer = null;
+
+function getToken(){
+  const h = decodeURIComponent(location.hash.slice(1));
+  if(h){ try { localStorage.setItem(TKEY, h); } catch {} history.replaceState(null, "", location.pathname); return h; }
+  try { return localStorage.getItem(TKEY) || ""; } catch { return ""; }
+}
+async function fetchRows(t){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_survey_responses`, {
+    method:"POST", headers:{ apikey:SUPABASE_KEY, "Content-Type":"application/json" }, body:JSON.stringify({ admin_token:t }) });
+  if(r.status === 400 || r.status === 401 || r.status === 403) throw new Error("bad-token");
+  if(!r.ok) throw new Error("network");
+  return r.json();
+}
+function gate(msg=""){
+  clearInterval(timer);
+  app.innerHTML = `<div class="gate card"><h1 style="font-family:var(--display)">REVORA results</h1>
+    <p class="muted" style="margin-top:6px">Enter the admin token to view responses.</p>
+    <input id="tok" type="password" placeholder="Admin token" autocomplete="off"><button class="btn" id="go" style="width:100%;justify-content:center">View results</button>
+    <div class="err">${esc(msg)}</div></div>`;
+  const go = () => { token = document.getElementById("tok").value.trim(); try { localStorage.setItem(TKEY, token); } catch {} load(); };
+  document.getElementById("go").onclick = go;
+  document.getElementById("tok").onkeydown = e => { if(e.key === "Enter") go(); };
+}
+async function load(){
+  if(!token) return gate();
+  try { rows = await fetchRows(token); draw(); clearInterval(timer); timer = setInterval(refresh, 20000); }
+  catch(e){ if(e.message === "bad-token"){ try { localStorage.removeItem(TKEY); } catch {} gate("That token didn't work."); } else gate("Couldn't reach the database. Check your connection."); }
+}
+async function refresh(){ try { rows = await fetchRows(token); draw(); } catch {} }
+
+function tally(field){
+  const m = new Map();
+  for(const r of rows){ const v = r[field]; const vals = Array.isArray(v) ? v : (v ? [field === "role" && v === "Other" && r.role_other ? `Other: ${r.role_other}` : v] : []);
+    for(const x of vals) m.set(x, (m.get(x) || 0) + 1); }
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+const pct = (n, d) => d ? Math.round(n / d * 100) + "%" : "–";
+function draw(){
+  const n = rows.length;
+  const must = rows.filter(r => r.value_rating === "Must-have").length;
+  const need = rows.filter(r => r.market_timing === "Yes, right now").length;
+  const fol = rows.filter(r => r.wants_followup).length;
+  app.innerHTML = `
+  <header><div><h1>REVORA survey results</h1><small>Live · refreshes every 20 s</small></div><div class="sp"></div>
+    <button class="btn ghost" id="rf">Refresh</button><button class="btn" id="dl" ${n ? "" : "disabled"}>⬇ Download Excel</button></header>
+  <div class="kpis">
+    <div class="card kpi"><span>Responses</span><b>${n}</b></div>
+    <div class="card kpi"><span>Say must-have</span><b>${pct(must, n)}</b></div>
+    <div class="card kpi"><span>Need it right now</span><b>${pct(need, n)}</b></div>
+    <div class="card kpi"><span>Want early access</span><b>${fol}</b></div>
+  </div>
+  ${n ? `<div class="grid">${CHARTS.map(([f, t]) => { const tl = tally(f), max = Math.max(1, ...tl.map(x => x[1]));
+      return `<div class="card q"><h3>${esc(t)}</h3>${tl.map(([k, v]) => `<div class="bar"><span class="lbl" title="${esc(k)}">${esc(k)}</span><span class="n">${v}</span><span class="track"><i style="width:${v / max * 100}%"></i></span></div>`).join("") || '<p class="muted">No answers yet</p>'}</div>`; }).join("")}</div>
+  <div class="card tbl"><table><thead><tr>${COLS.map(c => `<th>${esc(c[1].replace(/^Q\d+ · /, ""))}</th>`).join("")}</tr></thead>
+    <tbody>${rows.slice().reverse().map(r => `<tr>${COLS.map(([k]) => `<td class="${k === "name" ? "nm" : ""}">${esc(cell(r, k))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
+  : `<div class="card empty">No responses yet. Share the QR code and they'll appear here.</div>`}`;
+  document.getElementById("rf").onclick = refresh;
+  document.getElementById("dl").onclick = exportXlsx;
+}
+function cell(r, k){
+  const v = r[k];
+  if(k === "created_at") return new Date(v).toLocaleString();
+  if(Array.isArray(v)) return v.join("; ");
+  if(typeof v === "boolean") return v ? "Yes" : "No";
+  return v ?? "";
+}
+function exportXlsx(){
+  if(!window.XLSX){ alert("The Excel library didn't load. Check your connection and refresh."); return; }
+  const wb = XLSX.utils.book_new();
+  const data = rows.map((r, i) => { const o = { "#": i + 1 }; for(const [k, h] of COLS) o[h] = k === "created_at" ? new Date(r[k]) : cell(r, k); return o; });
+  const ws = XLSX.utils.json_to_sheet(data, { cellDates:true });
+  ws["!cols"] = [{ wch:5 }, { wch:20 }, ...COLS.slice(1).map(([k, h]) => ({ wch: k === "feedback" ? 60 : k === "concerns" ? 48 : Math.max(14, Math.min(34, h.length)) }))];
+  ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:data.length, c:COLS.length } }) };
+  ws["!freeze"] = { xSplit:0, ySplit:1 };
+  for(let i = 1; i <= data.length; i++){ const c = ws[XLSX.utils.encode_cell({ r:i, c:1 })]; if(c) c.z = "yyyy-mm-dd hh:mm"; }
+  XLSX.utils.book_append_sheet(wb, ws, "Responses");
+
+  const sum = [["Question", "Answer", "Count", "% of respondents"]];
+  for(const [f, t] of CHARTS){ for(const [k, v] of tally(f)) sum.push([t, k, v, rows.length ? v / rows.length : 0]); sum.push([]); }
+  sum.push(["Total responses", "", rows.length, ""]);
+  const ws2 = XLSX.utils.aoa_to_sheet(sum);
+  ws2["!cols"] = [{ wch:56 }, { wch:40 }, { wch:8 }, { wch:16 }];
+  for(let i = 1; i < sum.length; i++){ const c = ws2[XLSX.utils.encode_cell({ r:i, c:3 })]; if(c && typeof c.v === "number") c.z = "0%"; }
+  XLSX.utils.book_append_sheet(wb, ws2, "Summary");
+
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+  XLSX.writeFile(wb, `REVORA_Survey_Responses_${stamp}.xlsx`);
+}
+token = getToken(); load();
+</script>
+</body>
+</html>
